@@ -1,0 +1,96 @@
+---
+title: "Solucion trabajo 1 Estadistica II"
+author: '.'
+date: "15/11/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r , echo=F, include=F}
+
+library(tidyverse)
+source("funciones.R")
+library(leaps)
+
+datos <- read.table("Equipo05.txt", header = T)
+
+```
+
+```{r}
+pairs(datos, lower.panel = myPanel.cor, upper.panel = panel.smooth, diag.panel = myPanel.box, labels = names(datos))
+```
+
+
+\section{punto 1}
+
+```{r, echo=F}
+
+FM <- lm(Y ~ . , data = datos)
+
+summaryFM <- summary(FM)
+
+summaryFM
+
+```
+
+```{r}
+anovFM <- myAnova(FM)
+```
+
+significancia de la regresion
+de la tabla myAnova se obtiene un valor p = 5.45558e-11 por lo que se rechaza H0 y se asume que algun 
+Bj es != 0 lo que significa que la regresion es significativa
+
+significancia de los parametros individuales
+de la prueba de hipotesis para cada parametro individual los que obtienen un valor P < 0.05 y por lo tanto son significantes son:
+- b1
+- b2
+los que obtienen un valor P > 0.05 y por lo tanto se asume que no son signifiacntes son:
+- b0
+- b3
+- b4
+- b5
+
+interpretar los parametros estimados (solo se pueden interpretar los parametros significativos)
+b1: indica que segun aumenta la cantidad promedio de la duracion de todos los pacientes (en dias), se ESTIMA que el riesgo de infeccion aumente 0.241964 en PROMEDIO
+b2: indica que segun aumenta la razon de # de cultivos realizados en pacientes sin sintomas por cada 100, se ESTIMA que el riesgo de infeccion aumente en 062237 en PROMEDIO.
+
+
+```{r}
+c(summaryFM$r.squared, summaryFM$adj.r.squared)
+```
+
+se obtuvo un R^2 multiple de 0.5112, lo que significa que el 51.12% de la variabilidad total es explicada por el la regresion.
+el R^2 ajustado es de 0.4799 que es inferior al R^2 multiple lo que puede decir que existen predictoras que no estan aportando de manera significativa a la regresion.
+
+\section{punto 2}
+
+```{r}
+myAllRegTable(FM)
+```
+
+las variables 3 con valores p mas grandes son: X3, X4, X5
+
+```{r}
+
+# H0: b3 = b4 = b5 = 0     Ha: algun bj != 0  j=3,4,5
+
+# RM = b0 + b1X1 + B2X2
+
+SSErm <- 80.4551
+SSEfm <- 74.7959
+SSH <- SSErm - SSEfm
+r <- 81 - 78
+MSH <- SSH/r
+
+MSE <- 0.958921 # de la tabla myAnova
+
+F0 <- MSH / MSE
+
+Vp <- pf(F0, r, 84-6, lower.tail = F) # = 0.1257792
+```
+
+NO se rechaza H0, por lo que se asume que b3 = b4 = b5 = 0
+
+

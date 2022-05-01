@@ -1,0 +1,440 @@
+---
+header-includes:
+- \usepackage{longtable}
+- \usepackage[utf8]{inputenc}
+- \usepackage[spanish]{babel}\decimalpoint
+output:
+  pdf_document: default
+fontsize: 12pt
+papersize: letter
+geometry: margin = 1in
+language: "es"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, fig.align = 'center',  message = F, fig.pos = "H")
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(leaps)
+source("funciones.R")
+```
+
+\input{titlepage}
+\thispagestyle{empty}
+\tableofcontents
+\listoffigures
+\listoftables
+
+\newpage
+
+\pagestyle{myheadings}
+\setcounter{page}{3}
+
+\section{Analisis descriptivo de las variables}
+
+```{r}
+datos <- read.table("Equipo05.txt", header = T)
+
+pairs(datos, lower.panel = myPanel.cor, upper.panel = panel.smooth, diag.panel = myPanel.box, labels = names(datos))
+```
+
+De la matriz de análisis de matriz de gráficos de dispersión, se observa que las variables $X_3, X_4, X_5$ están fuertemente correlacionadas linealmente, lo que podria indicar redundancia entre las variables.
+
+
+
+\section{Punto 1.}
+
+\subsection{Estimación del modelo}
+
+En base a lo anterior se plantea un modelo de RLM para el problema, de la forma: 
+$$y_i = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_3 x_3 + \beta_4 x_4 + \beta_5 x_5 + \varepsilon_i \ , con \ \varepsilon_i \stackrel{iid}{\sim} N(0, \sigma^2), \ i = 1, 2, ..., 84$$
+
+```{r include=FALSE}
+FM <- lm(Y~., data = datos)
+
+```
+
+Con base a la tabla de parámetros estimados, se obtiene la ecuación de regresión ajustada: 
+$$\hat{y}_i =0.74691 + 0.24196 x_{i,1} + 0.06224 x_{i,2} + 0.00294 x_{i,3} - 0.00478 x_{i,4} + 0.00250 x_{i,5}, i = 1,2,...,84$$
+
+\subsection{Prueba de significancia e interpretación de los parámetros individuales}
+
+Se probrara las hipotesis para la significancia marginal de los parametros del modelo
+$$
+\begin{cases}
+\begin{aligned}
+H_0&: \beta_j = 0 \\
+H_a&: \beta_j \neq 0
+\end{aligned}
+\end{cases}
+j = 0,1,2,3,4,5
+$$
+
+El estadistico para esta prueba es:
+$$T_{j,0} = \frac{ \hat{\beta}_j }{ se(\hat{\beta}_j) } \stackrel{bajo \ H_0}{\sim} t_{84-6}$$
+
+```{r}
+
+coefFM <- summary(FM)$coefficients
+
+row.names(coefFM) <- c("$\\beta_0$",
+                       "$\\beta_1$",
+                       "$\\beta_2$",
+                       "$\\beta_3$",
+                       "$\\beta_4$",
+                       "$\\beta_5$")
+
+coefFM %>%
+  kable(row.names = T,
+        escape = F,
+        align = "c",
+        caption = "Tabla de significancia de coeficientes",
+        booktab = T,
+        digits = 4,
+        col.names = c("Estimacion",
+                       "Error Estandar",
+                       "$T_0$",
+                       "valor p")) %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+A un nivel de significancia $\alpha = 0.05$ se concluye que los parámetros individuales $\beta_1 , \beta_2$ son significativos para le modelo en presencia de los demás parámetros, y por lo tanto son parámetros estimados interpretables.
+
+Se realizara la interpretacion de dichos parametros:
+
+$\hat{\beta_1}$: Indica que por cada unidad que cambie la duración promedio de la estadía, se estima que el promedio del riesgo de infección aumenta 0.2420 unidades cuando los demás parámetros se mantienen fijos.
+
+$\hat{\beta_2}$: Indica que por cada unidad que cambie la rutina de cultivos, se estima que el promedio del riesgo de infección aumenta 0.0622 unidades cuando los demás parámetros se mantienen fijos.
+
+
+\subsection{Prueba de significancia de la regresion}
+
+
+Se probaran las siguientes hipotesis
+$$
+\begin{cases}
+\begin{aligned}
+H_0&: \beta_1 = \beta_2 = \cdots = \beta_5 = 0 \\
+H_a&: algun \ \beta_j \neq 0 ,\ j = 1,2,3,4,5
+\end{aligned}
+\end{cases}
+$$
+
+El estadistico para esta prueba es:
+$$F_0 = \frac{MSR}{MSE} = 16.3171 \stackrel{bajo \ H_0}{\sim} f_{5,84-6}$$
+
+```{r}
+anovFM <- myAnova(FM)
+
+row.names(anovFM) <- c("Regresion", "Error")
+
+anovFM %>%
+  kable(row.names = T,
+        escape = F,
+        align = "c",
+        caption = "Tabla de analisis de varianza",
+        booktab = T,
+        digits = 4,
+        col.names = c("suma de cuadrados",
+                      "gl",
+                      "cuadrados medios",
+                      "$F_0$",
+                      "valor p")) %>%
+  kable_styling(latex_options = "HOLD_position")
+
+```
+
+Con una confianza de $\alpha = 0.05$, se rechaza $H_0$ concluyendo que el modelo de RLM es significativo, es decir que el riesgo de infección depende significativamente de al menos una de las variables predictoras del modelo.
+
+
+\subsection{Interpretacion de $R^2$}
+
+De la tabla de analisis de varianza se pueden obtener el valor del coeficiente de determinación múltiple.
+
+$$R^2 = \frac{SSR}{SST} = 0.511233$$
+
+El 51.12% de la variabilidad total del riesgo de infección, es explicada por el modelo de RLM propuesto.
+
+
+\section{Punto 2.}
+
+Del cuadro 1 se obtiene que los mayores valores P de los parámetros corresponden a $\beta_3, \beta_4, \ y \ \beta_5$. se probará las siguientes hipótesis:
+
+$$
+\begin{cases}
+\begin{aligned}
+H_0&: \beta_3 = \beta_4 = \beta_5 = 0 \\
+H_a&: algun \ \beta_j \neq 0 ,\ j = 3,4,5
+\end{aligned}
+\end{cases}
+$$
+
+Para probar esta hipotesis se usa la suma de cuadrados extra con subconjuntos $A = \{\beta_3, \beta_4, \beta_5\}$ y $B = \{\beta_0, \beta_1, \beta_2\}$
+
+Esto es:
+$$SSR(A|B) = SSE(\beta_0, \beta_1, \beta_2) - SSE(\beta_0, \beta_1, \beta_2,\beta_3, \beta_4, \beta_5)$$
+De la tabla de todas las regresiones posibles para este modelo se obtiene:
+
+$SSE(\beta_0, \beta_1, \beta_2) = 80.455$ \
+$SSE(\beta_0, \beta_1, \beta_2,\beta_3, \beta_4, \beta_5) = 74.796$
+
+finalmente se obtiene: 
+
+$SSR(A|B) = 80.455 - 74.796 = 5.659$
+
+con 3 grados de libertad
+
+El estadístico de prueba será:
+
+$$F_0 = \frac{SSR(A|B)/3}{MSE} = 1.967142 \stackrel{bajo \ H_0}{\sim} f_{3,84-6}$$
+
+
+de la prueba de hipótesis se obtiene $F_0 > f_{0.05,3,84-6} \Rightarrow 1.967142 > 2.721783$ , por lo que NO se rechaza $H_0$. Según la prueba SI es posible descartar del modelo las variables del subconjunto A
+
+
+\section{Punto 3.}
+
+Se probaran las hipotesis
+
+$$
+\begin{cases}
+\begin{aligned}
+H_0&: \beta_3 = \beta_4 \ , \beta_1 = \beta_2\\
+H_a&: \beta_3 \neq \beta_4 \ o \ \beta_1 \neq \beta_2
+\end{aligned}
+\end{cases}
+$$
+Se puede reescribir $H_0$ como:
+$$H_0: \beta_3 - \beta_4 = 0 \ , \beta_1 - \beta_2 = 0$$
+
+
+Se puede expresar $H_0$ de forma matricial como:
+$$
+H_0:
+\begin{bmatrix} 
+	0 & 0 & 0 & 1 & -1 & 0 \\
+	0 & 1 & -1 & 0 & 0 & 0 \\
+\end{bmatrix}
+\begin{bmatrix} 
+	\beta_0 \\
+	\beta_1 \\
+	\beta_2 \\
+	\beta_3 \\ 
+	\beta_4 \\
+	\beta_5 \\
+\end{bmatrix}
+=
+\begin{bmatrix} 
+	0 \\
+	0 \\
+\end{bmatrix}
+$$
+
+Por tanto, se tiene una prueba de hipótesis lineal general con:
+
+$$
+L =
+\begin{bmatrix} 
+	0 & 0 & 0 & 1 & -1 & 0 \\
+	0 & 1 & -1 & 0 & 0 & 0 \\
+\end{bmatrix}
+$$
+que tiene r = 2 filas linealmente independientes
+
+
+El modelo reducido en este caso es:
+
+$$RM: Y = \beta_0 + \beta_1 (X_1 + X_2) + \beta_3 (X_3 + X_4) + \beta_5 X_5 + \varepsilon = \beta_0 + \beta_1 X_{1,2} + \beta_3 X_{3,4} + \beta_5 X_5+ \varepsilon$$
+donde $X_{1,2} = X_1 + X_2$ y $X_{3,4} = X_3 + X_4$
+
+
+```{r}
+datos$X12 <- datos$X1 + datos$X2
+datos$X34 <- datos$X3 + datos$X4
+
+RM <- lm(Y ~ X12 + X34 + X5, data = datos)
+
+
+```
+
+
+En este modelo se tiene una suma de cuadrados del error $SSE(RM) = SSE(\beta_0,\beta_1, \beta_3, \beta_5) =  80.1439$ con 84 - 4 = 80 grados de libertad
+
+Luego el SSH se calcula: 
+$$SSH = SSE(RM) - SSE(FM) = 80.1439 - 74.7959 = 5.348$$
+que tiene 2 grados de libertad de manera que el cuadrado medio debido a la hipotesis es:
+$$MSH = \frac{SSH}{2} = 2.674$$
+
+Finalmente se define el estadistico de prueba:
+
+$$F_0 = \frac{MSH}{MSE} = 2.7886 \stackrel{bajo \ H_0}{\sim} f_{2,84-6}$$
+
+Obteniendo un valor P = $P(f_{2,84-6} > F_0) = 0.0676526$, que bajo un nivel de significancia $\alpha = 0.05$ NO se rechaza $H_0$, por lo que se asume que $\beta_3 = \beta_4 \ y \ \beta_1 = \beta_2$.
+
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\section{Punto 4.}
+
+- Se procede a validar los supuestos del modelo
+
+```{r, echo=F}
+mod <- lm( Y ~ X1 + X2 + X3 + X4 , data = datos)
+res.stud <- round(rstandard(mod), 4)
+yhat <- round(mod$fitted.values, 4)
+# Cálculo de errores estándar de los valores ajustados
+se.yhat <- round(predict(mod, se.fit = T)$se.fit, 4)
+# Residuales crudos del mod
+residuals <- round(mod$residuals, 4)
+# Distancias de Cook
+Cooks.D <- round(cooks.distance(mod), 4)
+# Valores de la diagonal de la matriz H
+hii.value <- round(hatvalues(mod), 4)
+# Dffits
+Dffits <- round(dffits(mod), 4)
+# Tabla de diagnósticos
+diagnosticos <- data.frame(datos, yhat, se.yhat, residuals, res.stud, Cooks.D, hii.value, Dffits)
+```
+
+
+**Verificar supuesto de Normalidad:**
+Se evaluan las hipotesis
+
+$$
+\begin{cases}
+\begin{aligned}
+H_0&: \varepsilon_i \sim Normal \\
+H_a&: \varepsilon_i \nsim Normal
+\end{aligned}
+\end{cases}
+$$
+
+```{r, fig.cap="Análisis de normalidad"}
+myQQnorm(mod)
+```
+
+- No se observan violaciones notorias del supuesto de normalidad en la gráfica, y en la prueba de Shapiro-Wilk se obtiene un valor P = 0.7554 que a un nivel de significancia $\alpha = 0.05$, NO se rechaza $H_0$ por lo que se asume que los errores se distribuyen normales.
+
+\
+\
+\
+\
+
+**Análisis de homocedasticidad y los valores atípicos**
+
+```{r, echo = F, fig.cap = "Estudentizados vs ajustados"}
+plot(yhat, res.stud, xlab = "Valores Ajustados", 
+     ylab = "Residuales Estudentizados", ylim = c(-3.5, 3.5), pch = 20)
+abline(h = 0, lty = 2, lwd = 2, col = 5)
+abline(h = 3, col = "magenta")
+abline(h = -3, col = "magenta")
+```
+
+- Del gráfico anterior se puede observar una violación del supuesto de varianza constante ya que no hay homocedasticidad, tambien se puede observar que NO se presentan valores tales que $|r_i| > 3$, por lo que no hay valores atipicos.
+
+
+```{r}
+
+Tabla_diag <- diagnosticos %>%
+  select(-X1, -X2, -X3, -X4, -X5, -X12, -X34)
+
+Tabla_diag[1:40,] %>%
+  kable(row.names = T,
+        escape = F,
+        align = "c",
+        caption = "Tabla de analisis de valores extremos [1,40]",
+        booktab = T,
+        digits = 4,
+        col.names = c("y",
+                      "$\\hat{y}$",
+                      "$se(\\hat{y})$",
+                      "$e_i$",
+                      "$r_i$",
+                      "Cook Dist.",
+                      "$h_{ii}$",
+                      "DFFITS")) %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+```{r}
+Tabla_diag[41:79,] %>%
+  kable(row.names = T,
+        escape = F,
+        align = "c",
+        caption = "Tabla de analisis de valores extremos [41, 79]",
+        booktab = T,
+        digits = 4,
+        col.names = c("y",
+                      "$\\hat{y}$",
+                      "$se(\\hat{y})$",
+                      "$e_i$",
+                      "$r_i$",
+                      "Cook Dist.",
+                      "$h_{ii}$",
+                      "DFFITS")) %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+```{r}
+Tabla_diag[80:84,] %>%
+  kable(row.names = T,
+        escape = F,
+        align = "c",
+        caption = "Tabla de analisis de valores extremos [80,84]",
+        booktab = T,
+        digits = 4,
+        col.names = c("y",
+                      "$\\hat{y}$",
+                      "$se(\\hat{y})$",
+                      "$e_i$",
+                      "$r_i$",
+                      "Cook Dist.",
+                      "$h_{ii}$",
+                      "DFFITS")) %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+ 
+
+
+**Posteriormente se analiza los valores de balanceo y de influencia: **
+
+```{r, fig.cap="Análisis de balanceo, $h_{ii} > 2p/n = 0.143$"}
+with(diagnosticos, plot(hii.value,
+                        xlab = "Observación", ylab = "Hii",pch = 20))
+abline(h = 2*6/84, col = "magenta")
+
+```
+
+\
+\
+\
+\
+\
+\
+
+Usando el diagnostico mediante DFFITS
+```{r, echo=F, fig.cap="Análisis de influencia, $|DFFITS_i| > 2\\sqrt{\\frac{p}{n}} = 0.535$"}
+with(diagnosticos, plot(abs(Dffits),
+                        xlab = "Observación", ylab = "|DFFITS|",pch = 20))
+abline(h = 2*sqrt(6/84), col = "magenta")
+```
+
+
+- Respecto a la influencia se encuentran 3 observaciones, que no son muy representativas, mientras que para el balanceo se tienen 7 observaciones, de las cuales 3 se encuentran muy alejadas del resto pero que no afectan las estimaciones de los parámetros.
+
